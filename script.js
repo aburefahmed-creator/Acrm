@@ -1,74 +1,112 @@
-let companies = JSON.parse(localStorage.getItem('companies')) || [];
-let editIndex = null;
+// مفتاح التخزين في LocalStorage
+const STORAGE_KEY = "companiesData";
 
-function renderTable() {
-  const tbody = document.getElementById("companyTable");
-  const search = document.getElementById("search").value.toLowerCase();
-  const statusFilter = document.getElementById("statusFilter").value;
-  tbody.innerHTML = "";
-  companies
-    .filter(c => c.name.toLowerCase().includes(search))
-    .filter(c => (statusFilter ? c.status === statusFilter : true))
-    .forEach((c, i) => {
-      tbody.innerHTML += `
-        <tr class="border">
-          <td class="p-2">${c.name}</td>
-          <td class="p-2">${c.status}</td>
-          <td class="p-2">${c.contact}</td>
-          <td class="p-2">
-            <button onclick="editCompany(${i})" class="bg-yellow-500 text-white px-2 py-1 rounded">تعديل</button>
-            <button onclick="deleteCompany(${i})" class="bg-red-500 text-white px-2 py-1 rounded">حذف</button>
-          </td>
-        </tr>`;
-    });
+// تحميل البيانات من LocalStorage
+function loadCompanies() {
+  const data = localStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
 }
 
-function openForm() {
-  document.getElementById("formModal").classList.remove("hidden");
+// حفظ البيانات في LocalStorage
+function saveCompanies(companies) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(companies));
 }
 
-function closeForm() {
-  document.getElementById("formModal").classList.add("hidden");
-  editIndex = null;
+// إضافة شركة جديدة
+function addCompany(company) {
+  const companies = loadCompanies();
+  companies.push(company);
+  saveCompanies(companies);
 }
 
-function saveCompany() {
-  const name = document.getElementById("companyName").value;
-  const contact = document.getElementById("contactPerson").value;
-  const status = document.getElementById("companyStatus").value;
-  const notes = document.getElementById("notes").value;
-  if (!name) return alert("الرجاء إدخال اسم الشركة");
-
-  const data = { name, contact, status, notes };
-  if (editIndex !== null) {
-    companies[editIndex] = data;
-  } else {
-    companies.push(data);
-  }
-  localStorage.setItem("companies", JSON.stringify(companies));
-  renderTable();
-  closeForm();
+// تعديل شركة
+function updateCompany(index, updatedCompany) {
+  const companies = loadCompanies();
+  companies[index] = updatedCompany;
+  saveCompanies(companies);
 }
 
-function editCompany(i) {
-  const c = companies[i];
-  document.getElementById("companyName").value = c.name;
-  document.getElementById("contactPerson").value = c.contact;
-  document.getElementById("companyStatus").value = c.status;
-  document.getElementById("notes").value = c.notes;
-  document.getElementById("formModal").classList.remove("hidden");
-  editIndex = i;
+// حذف شركة
+function deleteCompany(index) {
+  const companies = loadCompanies();
+  companies.splice(index, 1);
+  saveCompanies(companies);
 }
 
-function deleteCompany(i) {
-  if (confirm("هل تريد حذف هذه الشركة؟")) {
-    companies.splice(i, 1);
-    localStorage.setItem("companies", JSON.stringify(companies));
-    renderTable();
-  }
+// عرض الشركات في الجدول
+function renderCompanies() {
+  const companies = loadCompanies();
+  const tableBody = document.getElementById("companiesTable");
+  tableBody.innerHTML = "";
+
+  companies.forEach((company, index) => {
+    const row = `
+      <tr>
+        <td>${company.name}</td>
+        <td>${company.status}</td>
+        <td>${company.contact}</td>
+        <td>${company.notes}</td>
+        <td>
+          <button onclick="editCompany(${index})" class="text-blue-500">✏️ تعديل</button>
+          <button onclick="deleteCompanyHandler(${index})" class="text-red-500">🗑 حذف</button>
+        </td>
+      </tr>
+    `;
+    tableBody.innerHTML += row;
+  });
 }
 
-document.getElementById("search").addEventListener("input", renderTable);
-document.getElementById("statusFilter").addEventListener("change", renderTable);
+// هندلر الحذف
+function deleteCompanyHandler(index) {
+  deleteCompany(index);
+  renderCompanies();
+}
 
-renderTable();
+// هندلر التعديل
+function editCompany(index) {
+  const companies = loadCompanies();
+  const company = companies[index];
+
+  document.getElementById("companyName").value = company.name;
+  document.getElementById("companyStatus").value = company.status;
+  document.getElementById("contactPerson").value = company.contact;
+  document.getElementById("companyNotes").value = company.notes;
+
+  document.getElementById("saveBtn").onclick = function () {
+    const updatedCompany = {
+      name: document.getElementById("companyName").value,
+      status: document.getElementById("companyStatus").value,
+      contact: document.getElementById("contactPerson").value,
+      notes: document.getElementById("companyNotes").value,
+    };
+    updateCompany(index, updatedCompany);
+    renderCompanies();
+    resetForm();
+  };
+}
+
+// إضافة شركة جديدة من الفورم
+document.getElementById("saveBtn").onclick = function () {
+  const company = {
+    name: document.getElementById("companyName").value,
+    status: document.getElementById("companyStatus").value,
+    contact: document.getElementById("contactPerson").value,
+    notes: document.getElementById("companyNotes").value,
+  };
+
+  addCompany(company);
+  renderCompanies();
+  resetForm();
+};
+
+// إعادة ضبط الفورم
+function resetForm() {
+  document.getElementById("companyName").value = "";
+  document.getElementById("companyStatus").value = "active";
+  document.getElementById("contactPerson").value = "";
+  document.getElementById("companyNotes").value = "";
+  document.getElementById("saveBtn").onclick = addCompanyHandler;
+}
+
+// تحميل الشركات أول ما الصفحة تفتح
+window.onload = renderCompanies;
